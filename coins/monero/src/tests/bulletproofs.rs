@@ -4,14 +4,22 @@ use crate::{Commitment, random_scalar};
 use curve25519_dalek::{scalar::Scalar, edwards::EdwardsPoint,edwards::CompressedEdwardsY};
 //use curve25519_dalek::{edwards::CompressedEdwardsY};
 use crate::ringct::bulletproofs::*;
-use dalek_ff_group::{EdwardsPoint as ff_EP};
+use dalek_ff_group::{EdwardsPoint as ff_EP, Scalar as ff_Sca};
 
 use crate::ringct::bulletproofs::core::OriginalStruct;
 
 use hex_literal::hex;
 
+use crate::rpc::Rpc;
 
-#[test]
+use crate::ringct::*;
+
+use crate::transaction::Input;
+
+use std::time::Instant;
+
+
+//#[test]
 fn bulletproofs() {
 
     println!("Inside test bulletproofs");
@@ -59,11 +67,125 @@ fn bulletproofs() {
     assert!(struct_bp.verify(&mut OsRng,V));
 
 
+
+
     ////This is not working... is the prove function really working or the verify is buggy?
     //let commitments = (1 ..= 2).map(|i| Commitment::new(random_scalar(&mut OsRng), i)).collect::<Vec<_>>();
     //let Vc: Vec<ff_EP> = commitments.iter().map(|i| ff_EP(Commitment::calculate(i))).collect::<Vec<_>>();
     //let bp_proofs = Bulletproofs::prove(&mut OsRng, &commitments,false).unwrap();
     //assert!(bp_proofs.verify(&mut OsRng, Vc)); 
-    
 }
 
+
+
+
+#[tokio::test]
+pub async fn rpc_bp() {
+    let mut A: EdwardsPoint = CompressedEdwardsY::from_slice(&hex!("ef32c0b9551b804decdcb107eb22aa715b7ce259bf3c5cac20e24dfa6b28ac71")).decompress().unwrap();
+    let mut S: EdwardsPoint = CompressedEdwardsY::from_slice(&hex!("e1285960861783574ee2b689ae53622834eb0b035d6943103f960cd23e063fa0")).decompress().unwrap();
+    let mut T1: EdwardsPoint = CompressedEdwardsY::from_slice(&hex!("4ea07735f184ba159d0e0eb662bac8cde3eb7d39f31e567b0fbda3aa23fe5620")).decompress().unwrap();
+    let mut T2: EdwardsPoint = CompressedEdwardsY::from_slice(&hex!("b8390aa4b60b255630d40e592f55ec6b7ab5e3a96bfcdcd6f1cd1d2fc95f441e")).decompress().unwrap();
+    let mut a: Scalar = Scalar::from_bytes_mod_order(hex!("0077c5383dea44d3cd1bc74849376bd60679612dc4b945255822457fa0c0a209"));
+    let mut b: Scalar = Scalar::from_bytes_mod_order(hex!("fe80cf5756473482581e1d38644007793ddc66fdeb9404ec1689a907e4863302"));
+    let mut t: Scalar = Scalar::from_bytes_mod_order(hex!("40dfb08e09249040df997851db311bd6827c26e87d6f0f332c55be8eef10e603"));
+    let mut taux: Scalar = Scalar::from_bytes_mod_order(hex!("5957dba8ea9afb23d6e81cc048a92f2d502c10c749dc1b2bd148ae8d41ec7107"));
+    let mut mu: Scalar = Scalar::from_bytes_mod_order(hex!("923023b234c2e64774b820b4961f7181f6c1dc152c438643e5a25b0bf271bc02"));
+
+    let mut L: Vec<EdwardsPoint> = vec![
+                CompressedEdwardsY::from_slice(&hex!("c45f656316b9ebf9d357fb6a9f85b5f09e0b991dd50a6e0ae9b02de3946c9d99")).decompress().unwrap(),
+                CompressedEdwardsY::from_slice(&hex!("9304d2bf0f27183a2acc58cc755a0348da11bd345485fda41b872fee89e72aac")).decompress().unwrap(),
+                CompressedEdwardsY::from_slice(&hex!("1bb8b71925d155dd9569f64129ea049d6149fdc4e7a42a86d9478801d922129b")).decompress().unwrap(),
+                CompressedEdwardsY::from_slice(&hex!("5756a7bf887aa72b9a952f92f47182122e7b19d89e5dd434c747492b00e1c6b7")).decompress().unwrap(),
+                CompressedEdwardsY::from_slice(&hex!("6e497c910d102592830555356af5ff8340e8d141e3fb60ea24cfa587e964f07d")).decompress().unwrap(),
+                CompressedEdwardsY::from_slice(&hex!("f4fa3898e7b08e039183d444f3d55040f3c790ed806cb314de49f3068bdbb218")).decompress().unwrap(),
+                CompressedEdwardsY::from_slice(&hex!("0bbc37597c3ead517a3841e159c8b7b79a5ceaee24b2a9a20350127aab428713")).decompress().unwrap(),
+    ];
+
+    let mut R: Vec<EdwardsPoint> = vec![
+                CompressedEdwardsY::from_slice(&hex!("609420ba1702781692e84accfd225adb3d077aedc3cf8125563400466b52dbd9")).decompress().unwrap(),
+                CompressedEdwardsY::from_slice(&hex!("fb4e1d079e7a2b0ec14f7e2a3943bf50b6d60bc346a54fcf562fb234b342abf8")).decompress().unwrap(),
+                CompressedEdwardsY::from_slice(&hex!("6ae3ac97289c48ce95b9c557289e82a34932055f7f5e32720139824fe81b12e5")).decompress().unwrap(),
+                CompressedEdwardsY::from_slice(&hex!("d071cc2ffbdab2d840326ad15f68c01da6482271cae3cf644670d1632f29a15c")).decompress().unwrap(),
+                CompressedEdwardsY::from_slice(&hex!("e52a1754b95e1060589ba7ce0c43d0060820ebfc0d49dc52884bc3c65ad18af5")).decompress().unwrap(),
+                CompressedEdwardsY::from_slice(&hex!("41573b06140108539957df71aceb4b1816d2409ce896659aa5c86f037ca5e851")).decompress().unwrap(),
+                CompressedEdwardsY::from_slice(&hex!("a65970b2cc3c7b08b2b5b739dbc8e71e646783c41c625e2a5b1535e3d2e0f742")).decompress().unwrap(),
+    ];
+
+
+    let mut V: Vec<ff_EP> = vec![
+        ff_EP(CompressedEdwardsY::from_slice(&hex!("8e8f23f315edae4f6c2f948d9a861e0ae32d356b933cd11d2f0e031ac744c41f")).decompress().unwrap()),
+        ff_EP(CompressedEdwardsY::from_slice(&hex!("2829cbd025aa54cd6e1b59a032564f22f0b2e5627f7f2c4297f90da438b5510f")).decompress().unwrap()),
+    ];
+
+    let inv8: ff_Sca = ff_Sca(Scalar::from(8u8).invert());
+
+
+    ////This is working for the example above.
+    let mut struct_bp = Bulletproofs::Original(OriginalStruct{A,S,T1,T2,taux,mu,L,R,a,b,t});
+
+    let rpc = Rpc::new("http://127.0.0.1:18081".to_string());
+    let mut height = 0;
+    let mut i = 0;
+
+    let now = Instant::now();
+
+
+    for height in 2300278..2300400 {
+        let txs = rpc.get_block_transactions(height).await.unwrap();
+
+        let mut type_tx = 0;
+        let mut hash_tx = vec![hex!("e9ffcc1e864f28c4c6eb6fb99201e22887f74e7287740ec7d7db8a32b518dd4a")];
+
+        for i in 0..txs.len() {
+
+        hash_tx = vec![txs[i].hash()];
+        println!("tx {} {:02x?} ",i, hash_tx);
+
+        type_tx = txs[i].rct_signatures.prunable.rct_type();
+        println!("type: {}", type_tx);
+        if type_tx != 0 {
+            match &txs[i].rct_signatures.prunable { 
+                RctPrunable::Clsag { bulletproofs , ..} => 
+                struct_bp = bulletproofs[0].clone(), 
+                _ => panic!("not clsag") };
+            //println!("tx info: {:?} ",tx);
+            
+            match &txs[i].rct_signatures.base{ 
+                RctBase { commitments, ..} => 
+                V = commitments.iter().map(|i| ff_EP(*i) * inv8).collect::<Vec<_>>(), 
+                _ => panic!("not valid commitment") };
+
+            assert!(struct_bp.verify(&mut OsRng,V));
+            println!("------------------");
+
+            }
+        
+        }
+        
+        //println!("tx version {} ",txs[i].prefix.inputs.len());
+        println!("-------- height : {} ---------------", height);
+    }
+
+    let elapsed = now.elapsed();
+    println!("Elapsed: {:.2?}", elapsed);
+
+    //let str_tx2 = vec![hex!("e9ffcc1e864f28c4c6eb6fb99201e22887f74e7287740ec7d7db8a32b518dd4a")];
+    //let tx = rpc.get_transactions(&str_tx2).await.unwrap();
+
+    //match &tx[0].rct_signatures.prunable { 
+        //RctPrunable::Clsag { bulletproofs , ..} => 
+        //struct_bp = bulletproofs[0].clone(), 
+        //_ => panic!("not clsag") };
+    ////println!("tx info: {:?} ",tx);
+    
+
+
+    //match &tx[0].rct_signatures.base{ 
+        //RctBase { commitments, ..} => 
+        //V = commitments.iter().map(|i| ff_EP(*i) * inv8).collect::<Vec<_>>(), 
+        //_ => panic!("not valid commitment") };
+
+
+    //assert!(struct_bp.verify(&mut OsRng,V));
+
+}
