@@ -18,6 +18,10 @@ use crate::transaction::Input;
 
 use std::time::Instant;
 
+use std::fs;
+use std::fs::File;
+use std::io::{Write, BufReader, BufRead, Error};
+use std::fs::OpenOptions;
 
 //#[test]
 fn bulletproofs() {
@@ -80,7 +84,7 @@ fn bulletproofs() {
 
 
 #[tokio::test]
-pub async fn rpc_bp() {
+pub async fn rpc_bp() -> Result<(), Error>{
     let mut A: EdwardsPoint = CompressedEdwardsY::from_slice(&hex!("ef32c0b9551b804decdcb107eb22aa715b7ce259bf3c5cac20e24dfa6b28ac71")).decompress().unwrap();
     let mut S: EdwardsPoint = CompressedEdwardsY::from_slice(&hex!("e1285960861783574ee2b689ae53622834eb0b035d6943103f960cd23e063fa0")).decompress().unwrap();
     let mut T1: EdwardsPoint = CompressedEdwardsY::from_slice(&hex!("4ea07735f184ba159d0e0eb662bac8cde3eb7d39f31e567b0fbda3aa23fe5620")).decompress().unwrap();
@@ -122,16 +126,39 @@ pub async fn rpc_bp() {
 
     ////This is working for the example above.
     let mut struct_bp = Bulletproofs::Original(OriginalStruct{A,S,T1,T2,taux,mu,L,R,a,b,t});
+    assert!(struct_bp.verify(&mut OsRng,V));
 
     let rpc = Rpc::new("http://127.0.0.1:18081".to_string());
-    let mut height = 0;
+    let mut h = 0;
     let mut i = 0;
+
+
+    println!("Before files " );
+
+    //let mut output = File::create(path)?;
+    //let mut output = File::options().append(false).create(true).open("example.log").unwrap();
+    let mut output = OpenOptions::new().write(true).append(false).create(true).open("heights.txt").unwrap();
+
+
+
+
+
+    //let mut height = fs::read_to_string("height.txt").expect("The file could not be read");
+    //println!("{}", height);
+
 
     let now = Instant::now();
 
+    println!("Before for " );
 
-    for height in 2300278..2300400 {
-        let txs = rpc.get_block_transactions(height).await.unwrap();
+    for h in 2300278..2300380{
+
+
+        write!(output, "{}", h);
+        //file.write(h).unwrap();
+
+
+        let txs = rpc.get_block_transactions(h).await.unwrap();
 
         let mut type_tx = 0;
         let mut hash_tx = vec![hex!("e9ffcc1e864f28c4c6eb6fb99201e22887f74e7287740ec7d7db8a32b518dd4a")];
@@ -139,10 +166,10 @@ pub async fn rpc_bp() {
         for i in 0..txs.len() {
 
         hash_tx = vec![txs[i].hash()];
-        println!("tx {} {:02x?} ",i, hash_tx);
+        //println!("tx {} {:02x?} ",i, hash_tx);
 
         type_tx = txs[i].rct_signatures.prunable.rct_type();
-        println!("type: {}", type_tx);
+        //println!("type: {}", type_tx);
         if type_tx != 0 {
             match &txs[i].rct_signatures.prunable { 
                 RctPrunable::Clsag { bulletproofs , ..} => 
@@ -156,14 +183,14 @@ pub async fn rpc_bp() {
                 _ => panic!("not valid commitment") };
 
             assert!(struct_bp.verify(&mut OsRng,V));
-            println!("------------------");
+            //println!("------------------");
 
             }
         
         }
         
         //println!("tx version {} ",txs[i].prefix.inputs.len());
-        println!("-------- height : {} ---------------", height);
+        println!("{}", h);
     }
 
     let elapsed = now.elapsed();
@@ -187,5 +214,6 @@ pub async fn rpc_bp() {
 
 
     //assert!(struct_bp.verify(&mut OsRng,V));
+    Ok(())
 
 }

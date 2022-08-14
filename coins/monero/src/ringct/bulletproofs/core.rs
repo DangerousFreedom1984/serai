@@ -396,7 +396,7 @@ impl OriginalStruct {
 
     //Checks should be sent to a list for batch proofs
     let res = const_multiexp(&multiexp_data_vector);
-    println!("res = {:02X?}",res.compress().to_bytes());
+    //println!("res = {:02X?}",res.compress().to_bytes());
     if res == EdwardsPoint::identity() { true } else { false }
 }
 
