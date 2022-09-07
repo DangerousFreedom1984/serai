@@ -159,17 +159,17 @@ pub async fn rpc_bp() -> Result<(), Error>{
         write!(output, "{}", h);
         //file.write(h).unwrap();
 
-        println!("Trying to get txs from block: {}",h);
+        //println!("Trying to get txs from block: {}",h);
         let txs = rpc.get_block_transactions(h).await.unwrap();
-        println!("Successfully got transactions from block: {}",h);
+        //println!("Successfully got transactions from block: {}",h);
 
         for i in 0..txs.len() {
     
-            println!("tx version: {:?} ",txs[i].prefix.version);
+            //println!("tx version: {:?} ",txs[i].prefix.version);
             if txs[i].prefix.version == 2 {
 
             hash_tx = vec![txs[i].hash()];
-            println!("tx {} {:02x?} ",i, hash_tx);
+            //println!("tx {} {:02x?} ",i, hash_tx);
 
             type_tx = txs[i].rct_signatures.prunable.rct_type();
             //println!("type: {}", type_tx);
