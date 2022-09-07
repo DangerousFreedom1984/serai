@@ -6,6 +6,10 @@ pub use hash_to_point::hash_to_point;
 pub mod clsag;
 pub mod bulletproofs;
 
+//use crate::CompressedEdwardsY;
+use curve25519_dalek::edwards::CompressedEdwardsY;
+use hex_literal::hex;
+
 use crate::{
   serialize::*,
   ringct::{clsag::Clsag, bulletproofs::Bulletproofs},
@@ -26,6 +30,15 @@ impl RctBase {
   pub(crate) fn fee_weight(outputs: usize) -> usize {
     1 + 8 + (outputs * (8 + 32))
   }
+
+  pub fn new() -> RctBase {
+      RctBase {
+          fee: 0u64,
+          ecdh_info: vec![[0u8;8]],
+          commitments: vec![CompressedEdwardsY::from_slice(&hex!("8e8f23f315edae4f6c2f948d9a861e0ae32d356b933cd11d2f0e031ac744c41f")).decompress().unwrap()],
+      }
+  }
+
 
   pub fn serialize<W: std::io::Write>(&self, w: &mut W, rct_type: u8) -> std::io::Result<()> {
     w.write_all(&[rct_type])?;

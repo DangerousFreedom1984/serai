@@ -5,7 +5,7 @@ use curve25519_dalek::edwards::EdwardsPoint;
 use crate::{
   hash,
   serialize::*,
-  ringct::{RctPrunable, RctSignatures},
+  ringct::{RctBase,RctPrunable, RctSignatures},
 };
 
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -208,7 +208,7 @@ pub struct Transaction {
 impl Transaction {
   pub(crate) fn fee_weight(ring_len: usize, inputs: usize, outputs: usize, extra: usize) -> usize {
     TransactionPrefix::fee_weight(ring_len, inputs, outputs, extra) +
-      RctSignatures::fee_weight(ring_len, inputs, outputs)
+    RctSignatures::fee_weight(ring_len, inputs, outputs)
   }
 
   pub fn serialize<W: std::io::Write>(&self, w: &mut W) -> std::io::Result<()> {
@@ -218,6 +218,7 @@ impl Transaction {
 
   pub fn deserialize<R: std::io::Read>(r: &mut R) -> std::io::Result<Transaction> {
     let prefix = TransactionPrefix::deserialize(r)?;
+    if prefix.version == 2 {
     Ok(Transaction {
       rct_signatures: RctSignatures::deserialize(
         prefix
@@ -233,6 +234,11 @@ impl Transaction {
       )?,
       prefix,
     })
+    }
+    else
+    {
+    Ok(Transaction { rct_signatures: RctSignatures{base: RctBase::new(),prunable: RctPrunable::Null}, prefix})
+    }
   }
 
   pub fn hash(&self) -> [u8; 32] {
@@ -263,7 +269,6 @@ impl Transaction {
         }
       }
       sig_hash.extend(&serialized);
-
       hash(&sig_hash)
     }
   }
@@ -283,10 +288,8 @@ impl Transaction {
       .unwrap();
     sig_hash.extend(hash(&serialized));
     serialized.clear();
-
     self.rct_signatures.prunable.signature_serialize(&mut serialized).unwrap();
     sig_hash.extend(&hash(&serialized));
-
     hash(&sig_hash)
   }
 }

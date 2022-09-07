@@ -431,6 +431,7 @@ impl Rpc {
       .await?;
 
     if res.status != "OK" {
+      println!("Error in tx:  {:02x?} ",tx.hash());
       Err(RpcError::InvalidTransaction(tx.hash()))?;
     }
 

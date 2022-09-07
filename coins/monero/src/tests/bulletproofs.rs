@@ -150,43 +150,47 @@ pub async fn rpc_bp() -> Result<(), Error>{
     let now = Instant::now();
 
     println!("Before for " );
+    let mut type_tx = 0;
+    let mut hash_tx = vec![hex!("e9ffcc1e864f28c4c6eb6fb99201e22887f74e7287740ec7d7db8a32b518dd4a")];
 
-    for h in 2300278..2300380{
+    for h in 2504951..2504953{
 
 
         write!(output, "{}", h);
         //file.write(h).unwrap();
 
-
+        println!("Trying to get txs from block: {}",h);
         let txs = rpc.get_block_transactions(h).await.unwrap();
-
-        let mut type_tx = 0;
-        let mut hash_tx = vec![hex!("e9ffcc1e864f28c4c6eb6fb99201e22887f74e7287740ec7d7db8a32b518dd4a")];
+        println!("Successfully got transactions from block: {}",h);
 
         for i in 0..txs.len() {
+    
+            println!("tx version: {:?} ",txs[i].prefix.version);
+            if txs[i].prefix.version == 2 {
 
-        hash_tx = vec![txs[i].hash()];
-        //println!("tx {} {:02x?} ",i, hash_tx);
+            hash_tx = vec![txs[i].hash()];
+            println!("tx {} {:02x?} ",i, hash_tx);
 
-        type_tx = txs[i].rct_signatures.prunable.rct_type();
-        //println!("type: {}", type_tx);
-        if type_tx != 0 {
-            match &txs[i].rct_signatures.prunable { 
-                RctPrunable::Clsag { bulletproofs , ..} => 
-                struct_bp = bulletproofs[0].clone(), 
-                _ => panic!("not clsag") };
-            //println!("tx info: {:?} ",tx);
+            type_tx = txs[i].rct_signatures.prunable.rct_type();
+            //println!("type: {}", type_tx);
+            if type_tx != 0 {
+                match &txs[i].rct_signatures.prunable { 
+                    RctPrunable::Clsag { bulletproofs , ..} => 
+                    struct_bp = bulletproofs[0].clone(), 
+                    _ => panic!("not clsag") };
+                //println!("tx info: {:?} ",tx);
+                
+                match &txs[i].rct_signatures.base{ 
+                    RctBase { commitments, ..} => 
+                    V = commitments.iter().map(|i| ff_EP(*i) * inv8).collect::<Vec<_>>(), 
+                    _ => panic!("not valid commitment") };
+
+                assert!(struct_bp.verify(&mut OsRng,V));
+                //println!("------------------");
+
+                }
             
-            match &txs[i].rct_signatures.base{ 
-                RctBase { commitments, ..} => 
-                V = commitments.iter().map(|i| ff_EP(*i) * inv8).collect::<Vec<_>>(), 
-                _ => panic!("not valid commitment") };
-
-            assert!(struct_bp.verify(&mut OsRng,V));
-            //println!("------------------");
-
             }
-        
         }
         
         //println!("tx version {} ",txs[i].prefix.inputs.len());
